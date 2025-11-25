@@ -24,6 +24,9 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/', (req, res) => res.send('Server is running'));
+
+
 // Serve static lesson images from /public/images at the /images URL path.
 // e.g., GET /images/example.jpg will serve public/images/example.jpg
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
