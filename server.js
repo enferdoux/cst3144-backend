@@ -1,31 +1,41 @@
 // server.js - Express backend using native MongoDB driver
+// This file sets up an Express server, connects to MongoDB, and exposes
+// simple CRUD/search endpoints for "lessons" and an order creation endpoint.
+
 // Import Express framework for building the server
 const express = require('express');
-// Import CORS middleware to allow cross-origin requests
+// Import CORS middleware to allow cross-origin requests from the frontend
 const cors = require('cors');
-// Import path module for file path operations
+// Node path for serving static files (images)
 const path = require('path');
-// Import MongoDB client and ObjectId for database operations
+// MongoDB native driver: MongoClient to connect, ObjectId to work with _id fields
 const { MongoClient, ObjectId } = require('mongodb');
 
 const app = express();
+
+// Allow CORS (adjust options in production as needed)
 app.use(cors());
+// Parse JSON request bodies
 app.use(express.json());
 
-// Logger middleware
+// Simple request logger middleware for basic request tracing
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
   next();
 });
 
-// Static file middleware for lesson images (in /public/images)
+// Serve static lesson images from /public/images at the /images URL path.
+// e.g., GET /images/example.jpg will serve public/images/example.jpg
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
 
-// MongoDB connection (expect MONGODB_URI env var)
+// MongoDB connection configuration
+// Use environment variables when available, otherwise default to local MongoDB.
 const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
 const dbName = process.env.MONGODB_DB || 'cst3144';
-let db;
+let db; // will hold the connected database instance
 
+// Initialize MongoDB connection asynchronously on startup.
+// Exits the process if the connection fails so the app doesn't run without DB.
 async function initDb() {
   const client = new MongoClient(mongoUri);
   await client.connect();
@@ -39,13 +49,15 @@ initDb().catch(err => {
 
 // Routes
 
-// GET /lessons - returns all lessons
+// GET /lessons - returns all lesson documents
+// Note: consider adding pagination in production to avoid returning huge result sets.
 app.get('/lessons', async (req, res) => {
   const lessons = await db.collection('lessons').find({}).toArray();
   res.json(lessons);
 });
 
-// GET /lessons/:id - optional single lesson
+// GET /lessons/:id - returns a single lesson by ObjectId
+// Returns 404 if not found, 400 for invalid id format.
 app.get('/lessons/:id', async (req, res) => {
   try {
     const id = req.params.id;
@@ -53,14 +65,16 @@ app.get('/lessons/:id', async (req, res) => {
     if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
     res.json(lesson);
   } catch (e) {
+    // Likely thrown by new ObjectId(id) when id is invalid
     res.status(400).json({ error: 'Invalid id' });
   }
 });
 
-// GET /search?q=... - simple back-end search across fields
+// GET /search?q=... - simple backend search across a few fields
+// Uses a case-insensitive regex to match topic, location, price (as string), or space.
+// Note: using regex queries can be slow on large collections; consider text indexes.
 app.get('/search', async (req, res) => {
   const q = req.query.q || '';
-  // Simple case-insensitive substring match across topic, location, price (string), space
   const regex = new RegExp(q, 'i');
   const results = await db.collection('lessons').find({
     $or: [
@@ -73,7 +87,9 @@ app.get('/search', async (req, res) => {
   res.json(results);
 });
 
-// POST /orders - create new order
+// POST /orders - create a new order document
+// Expected body: { name: string, phone: string, lessonIDs: [idString, ...] }
+// Validates basic shape, converts lessonIDs to ObjectId and stores createdAt timestamp.
 app.post('/orders', async (req, res) => {
   const { name, phone, lessonIDs } = req.body;
   if (!name || !phone || !Array.isArray(lessonIDs) || lessonIDs.length === 0) {
@@ -82,6 +98,7 @@ app.post('/orders', async (req, res) => {
   const order = {
     name,
     phone,
+    // Convert string ids to ObjectId for storage
     lessonIDs: lessonIDs.map(id => new ObjectId(id)),
     createdAt: new Date()
   };
@@ -90,7 +107,9 @@ app.post('/orders', async (req, res) => {
   res.json({ insertedId: result.insertedId });
 });
 
-// PUT /lessons/:id - update any attribute of a lesson
+// PUT /lessons/:id - update fields of an existing lesson
+// Expects the fields to update in the request body; uses $set to apply updates.
+// Returns 400 if id is invalid.
 app.put('/lessons/:id', async (req, res) => {
   try {
     const id = req.params.id;
@@ -102,10 +121,11 @@ app.put('/lessons/:id', async (req, res) => {
   }
 });
 
-// Health
+// Health check endpoint for uptime monitoring
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Start server
+// Start server on configured port (NODE_PORT or PORT), default 3000.
+// In production, ensure the port is provided by the hosting environment.
 const port = process.env.PORT || process.env.NODE_PORT || 3000;
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
