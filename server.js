@@ -1,7 +1,11 @@
 // server.js - Express backend using native MongoDB driver
+// Import Express framework for building the server
 const express = require('express');
+// Import CORS middleware to allow cross-origin requests
 const cors = require('cors');
+// Import path module for file path operations
 const path = require('path');
+// Import MongoDB client and ObjectId for database operations
 const { MongoClient, ObjectId } = require('mongodb');
 
 const app = express();
