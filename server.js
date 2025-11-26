@@ -106,16 +106,27 @@ app.get('/search', async (req, res) => {
 // Validates basic shape, converts lessonIDs to ObjectId and stores createdAt timestamp.
 app.post('/orders', async (req, res) => {
   const { name, phone, lessonIDs } = req.body;
+
   if (!name || !phone || !Array.isArray(lessonIDs) || lessonIDs.length === 0) {
     return res.status(400).json({ error: 'Invalid order data' });
   }
+
+  // Validate each ID
+  const convertedIDs = [];
+  for (const id of lessonIDs) {
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ error: `Invalid lesson ID: ${id}` });
+    }
+    convertedIDs.push(new ObjectId(id));
+  }
+
   const order = {
     name,
     phone,
-    // Convert string ids to ObjectId for storage
-    lessonIDs: lessonIDs.map(id => new ObjectId(id)),
+    lessonIDs: convertedIDs,
     createdAt: new Date()
   };
+
   const result = await db.collection('orders').insertOne(order);
 
   res.json({ insertedId: result.insertedId });
