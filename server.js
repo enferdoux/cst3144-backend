@@ -14,7 +14,11 @@ const { MongoClient, ObjectId } = require('mongodb');
 const app = express();
 
 // Allow CORS (adjust options in production as needed)
-app.use(cors());
+const corsOptions = {
+  origin: ['http://localhost:5173', 'https://*.github.io'], // Allow local and GitHub Pages
+  credentials: true
+};
+app.use(cors(corsOptions));
 // Parse JSON request bodies
 app.use(express.json());
 
@@ -57,6 +61,12 @@ initDb().catch(err => {
 app.get('/lessons', async (req, res) => {
   const lessons = await db.collection('lessons').find({}).toArray();
   res.json(lessons);
+});
+
+// GET /orders - returns all order documents
+app.get('/orders', async (req, res) => {
+  const orders = await db.collection('orders').find({}).toArray();
+  res.json(orders);
 });
 
 // GET /lessons/:id - returns a single lesson by ObjectId
