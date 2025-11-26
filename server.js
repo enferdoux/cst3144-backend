@@ -14,11 +14,12 @@ const { MongoClient, ObjectId } = require('mongodb');
 const app = express();
 
 // Allow CORS (adjust options in production as needed)
-const corsOptions = {
-  origin: true, // Allow all origins
-  credentials: true
-};
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
 // Parse JSON request bodies
 app.use(express.json());
 
