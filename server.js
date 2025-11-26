@@ -15,7 +15,7 @@ const app = express();
 
 // Allow CORS (adjust options in production as needed)
 const corsOptions = {
-  origin: ['http://localhost:5173', 'https://*.github.io'], // Allow local and GitHub Pages
+  origin: true, // Allow all origins
   credentials: true
 };
 app.use(cors(corsOptions));
